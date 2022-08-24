@@ -25,9 +25,12 @@ Journey
 */
 
 function App() {
-  const { REACT_APP_CLIENT_ID, REACT_APP_CLIENT_SECRET } = process.env;
-  const redirectUrl = "http://localhost:3000";
-  const stravaLoginUrl = `http://www.strava.com/oauth/authorize?client_id=${REACT_APP_CLIENT_ID}&response_type=code&redirect_uri=${redirectUrl}/exchange_token&approval_prompt=force&scope=read`;
+  const {
+    REACT_APP_REDIRECT_URL,
+    REACT_APP_CLIENT_ID,
+    REACT_APP_CLIENT_SECRET,
+  } = process.env;
+  const stravaLoginUrl = `http://www.strava.com/oauth/authorize?client_id=${REACT_APP_CLIENT_ID}&response_type=code&redirect_uri=${REACT_APP_REDIRECT_URL}/exchange_token&approval_prompt=force&scope=read`;
   const today = new Date();
   const dayOfYear = Math.round(
     (today.getTime() - new Date(today.getFullYear(), 1, 1).getTime()) /
