@@ -153,11 +153,11 @@ function App() {
               days left to run{" "}
               <Text weight={700} span>
                 {Math.floor(1000 - kmsRun)}
-              </Text>{" "}
+              </Text>
               km
             </p>
             <p>
-              That's{" "}
+              That's about{" "}
               <Text weight={700} span>
                 {Math.ceil(
                   Math.floor(1000 - kmsRun) / Math.floor(365 - dayOfYear)
