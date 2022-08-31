@@ -32,9 +32,10 @@ function App() {
   } = process.env;
   const stravaLoginUrl = `http://www.strava.com/oauth/authorize?client_id=${REACT_APP_CLIENT_ID}&response_type=code&redirect_uri=${REACT_APP_REDIRECT_URL}/exchange_token&approval_prompt=force&scope=read`;
   const today = new Date();
-  const dayOfYear = Math.round(
-    (today.getTime() - new Date(today.getFullYear(), 1, 1).getTime()) /
-      (1000 * 60 * 60 * 24)
+  const nextYear = new Date(today.getFullYear() + 1, 0, 1);
+  const oneDay = 1000 * 60 * 60 * 24;
+  const daysLeftInYear = Math.ceil(
+    (nextYear.getTime() - today.getTime()) / oneDay
   );
 
   const navigate = useNavigate();
@@ -148,7 +149,7 @@ function App() {
             </Center>
             <p>
               <Text weight={700} span>
-                {Math.floor(365 - dayOfYear)}
+                {daysLeftInYear}
               </Text>{" "}
               days left to run{" "}
               <Text weight={700} span>
@@ -159,9 +160,7 @@ function App() {
             <p>
               That's about{" "}
               <Text weight={700} span>
-                {Math.ceil(
-                  Math.floor(1000 - kmsRun) / Math.floor(365 - dayOfYear)
-                )}
+                {Math.ceil(Math.floor(1000 - kmsRun) / daysLeftInYear)}
               </Text>
               km a day
             </p>
