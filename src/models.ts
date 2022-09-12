@@ -13,6 +13,7 @@ export interface Athlete {
 
 export interface ActivityStats {
   ytd_run_totals: ActivityTotal;
+  recent_run_totals: ActivityTotal;
 }
 
 export interface ActivityTotal {

@@ -4,14 +4,18 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCookies } from "react-cookie";
 import { ActivityStats, TokenResponse } from "./models";
 import {
+  ActionIcon,
   Button,
   Center,
+  ColorScheme,
   Container,
   Paper,
   Progress,
   Text,
   Title,
+  useMantineColorScheme,
 } from "@mantine/core";
+import { MoonStars, Sun } from "tabler-icons-react";
 
 /*
 Journey
@@ -25,6 +29,9 @@ Journey
 */
 
 function App() {
+  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
+  const dark = colorScheme === "dark";
+
   const {
     REACT_APP_REDIRECT_URL,
     REACT_APP_CLIENT_ID,
@@ -127,8 +134,26 @@ function App() {
   }, [REACT_APP_CLIENT_ID, REACT_APP_CLIENT_SECRET, setCookie, stravaDeets]);
 
   return (
-    <Container p="md">
+    <Container p="md" size={2000}>
       <Paper withBorder p="lg">
+        <Container
+          fluid
+          style={{
+            display: "flex",
+            flexDirection: "row-reverse",
+            justifyContent: "space-between",
+          }}
+        >
+          <ActionIcon
+            variant="outline"
+            onClick={() => toggleColorScheme()}
+            style={{ alignSelf: "right" }}
+          >
+            {dark ? <Sun size={18} /> : <MoonStars size={18} />}
+          </ActionIcon>
+          {loggedIn && <Title>{stravaDeets.athlete.firstname}</Title>}
+        </Container>
+
         {!loggedIn && (
           <Center>
             <Button component="a" href={stravaLoginUrl} size="xl" radius="lg">
@@ -136,7 +161,7 @@ function App() {
             </Button>
           </Center>
         )}
-        {loggedIn && <Title>{stravaDeets.athlete.firstname}</Title>}
+
         {stats && (
           <>
             <Center>
@@ -160,9 +185,13 @@ function App() {
             <p>
               That's about{" "}
               <Text weight={700} span>
-                {Math.ceil(Math.floor(1000 - kmsRun) / daysLeftInYear)}
+                {((1000 - kmsRun) / daysLeftInYear).toFixed(1)}
               </Text>
-              km a day
+              km a day. Over the past 4 weeks you've run{" "}
+              <Text weight={700} span>
+                {(stats.recent_run_totals.distance / (4 * 7 * 1000)).toFixed(1)}
+              </Text>
+              km per day
             </p>
             <Progress value={kmsRun / 10} size={30} />
           </>
