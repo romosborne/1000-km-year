@@ -2,20 +2,31 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCookies } from "react-cookie";
-import { ActivityStats, TokenResponse } from "./models";
+import {
+  ActivityStats,
+  Goal,
+  GoalMetric,
+  GoalActivity,
+  Tense,
+  TokenResponse,
+  ActivityTotal,
+} from "./models";
 import {
   ActionIcon,
   Button,
   Center,
-  ColorScheme,
   Container,
+  Group,
+  Modal,
+  NativeSelect,
+  NumberInput,
   Paper,
   Progress,
   Text,
   Title,
   useMantineColorScheme,
 } from "@mantine/core";
-import { MoonStars, Sun } from "tabler-icons-react";
+import { MoonStars, Settings, Sun } from "tabler-icons-react";
 
 /*
 Journey
@@ -47,14 +58,26 @@ function App() {
 
   const navigate = useNavigate();
   const [searchParams, _] = useSearchParams();
-  const [cookies, setCookie, removeCookie] = useCookies(["stravaDeets"]);
+  const [cookies, setCookie, removeCookie] = useCookies([
+    "stravaDeets",
+    "stravaGoal",
+  ]);
 
   const [loggedIn, setLoggedIn] = useState(false);
+  const [goalModalOpened, setGoalModalOpened] = useState(false);
+  const [goal, setGoal] = useState<Goal>({
+    activity: GoalActivity.Running,
+    metric: GoalMetric.Distance,
+    threshold: 1000,
+  });
   const [stats, setStats] = useState<ActivityStats>();
 
-  const stravaDeets = cookies.stravaDeets as TokenResponse;
+  const setGoalAndSave = (goal: Goal) => {
+    setGoal(goal);
+    setCookie("stravaGoal", goal);
+  };
 
-  const kmsRun = Math.round((stats?.ytd_run_totals.distance ?? 0) / 1000);
+  const stravaDeets = cookies.stravaDeets as TokenResponse;
 
   if (loggedIn && !stravaDeets) {
     setLoggedIn(false);
@@ -63,6 +86,96 @@ function App() {
   if (stravaDeets && !loggedIn) {
     setLoggedIn(true);
   }
+
+  const getActivity = (
+    s: ActivityStats | undefined,
+    a: GoalActivity,
+    recent: boolean = false
+  ) => {
+    if (!s) return null;
+    switch (a) {
+      case GoalActivity.Running:
+        return recent ? s.recent_run_totals : s.ytd_run_totals;
+      case GoalActivity.Swimming:
+        return recent ? s.recent_swim_totals : s.ytd_swim_totals;
+      case GoalActivity.Cycling:
+        return recent ? s.recent_ride_totals : s.ytd_ride_totals;
+    }
+  };
+
+  const getMetric = (t: ActivityTotal | null, m: GoalMetric) => {
+    if (!t) return 0;
+    switch (m) {
+      case GoalMetric.Count:
+        return t.count;
+      case GoalMetric.Distance:
+        return Math.round(t.distance / 1000);
+      case GoalMetric.MovingTime:
+        return Math.round(t.moving_time / (60 * 60));
+    }
+  };
+
+  const displayActivityName = (
+    t: GoalActivity | string,
+    tense: Tense = Tense.Present
+  ) => {
+    if (typeof t === "string") {
+      t = GoalActivity[t as keyof typeof GoalActivity];
+    }
+    switch (t) {
+      case GoalActivity.Running:
+        switch (tense) {
+          case Tense.Past:
+            return "run";
+          case Tense.Present:
+          default:
+            return "run";
+        }
+      case GoalActivity.Swimming:
+        switch (tense) {
+          case Tense.Past:
+            return "swam";
+          default:
+
+          case Tense.Present:
+            return "swim";
+        }
+      case GoalActivity.Cycling:
+        switch (tense) {
+          default:
+          case Tense.Past:
+            return "cycled";
+          case Tense.Present:
+            return "cycle";
+        }
+      default:
+        break;
+    }
+  };
+
+  const displayActivityCount = (m: GoalMetric | string) => {
+    if (typeof m === "string") {
+      m = GoalMetric[m as keyof typeof GoalMetric];
+    }
+    switch (m) {
+      case GoalMetric.Count:
+        return " times";
+      case GoalMetric.Distance:
+        return "km";
+      case GoalMetric.MovingTime:
+        return " hours";
+    }
+  };
+
+  useEffect(() => {
+    console.log("checking goals");
+    console.log(cookies.stravaGoal);
+    if (cookies.stravaGoal) {
+      setGoal(cookies.stravaGoal);
+    } else {
+      setGoalModalOpened(true);
+    }
+  }, [cookies.stravaGoal, setGoal, setCookie, setGoalModalOpened]);
 
   useEffect(() => {
     async function getRealCodes(code: string) {
@@ -133,71 +246,178 @@ function App() {
     }
   }, [REACT_APP_CLIENT_ID, REACT_APP_CLIENT_SECRET, setCookie, stravaDeets]);
 
+  const metricCount = getMetric(getActivity(stats, goal.activity), goal.metric);
+
   return (
-    <Container p="md" size={2000}>
-      <Paper withBorder p="lg">
-        <Container
-          fluid
-          style={{
-            display: "flex",
-            flexDirection: "row-reverse",
-            justifyContent: "space-between",
-          }}
-        >
-          <ActionIcon
-            variant="outline"
-            onClick={() => toggleColorScheme()}
-            style={{ alignSelf: "right" }}
+    <>
+      <Modal
+        centered
+        size="auto"
+        opened={goalModalOpened}
+        onClose={() => setGoalModalOpened(false)}
+        title="🏁Time to set a goal"
+      >
+        <Group style={{ marginTop: 10, marginBottom: 10 }}>
+          <Text>I want to track the</Text>
+          <NativeSelect
+            data={[
+              {
+                value: GoalMetric.Count.toString(),
+                label: "number of times",
+              },
+              {
+                value: GoalMetric.Distance.toString(),
+                label: "distance",
+              },
+              {
+                value: GoalMetric.MovingTime.toString(),
+                label: "length of time",
+              },
+            ]}
+            value={goal.metric.toString()}
+            onChange={(ev) => {
+              setGoalAndSave({
+                ...goal,
+                metric:
+                  GoalMetric[ev.currentTarget.value as keyof typeof GoalMetric],
+              });
+            }}
+          />
+          <Text> I </Text>
+          <NativeSelect
+            data={[
+              {
+                value: GoalActivity.Running.toString(),
+                label: displayActivityName(GoalActivity.Running),
+              },
+              {
+                value: GoalActivity.Cycling.toString(),
+                label: displayActivityName(GoalActivity.Cycling),
+              },
+              {
+                value: GoalActivity.Swimming.toString(),
+                label: displayActivityName(GoalActivity.Swimming),
+              },
+            ]}
+            value={goal.activity.toString()}
+            onChange={(ev) =>
+              setGoalAndSave({
+                ...goal,
+                activity:
+                  GoalActivity[
+                    ev.currentTarget.value as keyof typeof GoalActivity
+                  ],
+              })
+            }
+          />
+        </Group>
+        <Group>
+          <Text>My target is</Text>
+          <NumberInput
+            required
+            value={goal.threshold}
+            onChange={(val) =>
+              setGoalAndSave({ ...goal, threshold: val ?? 1000 })
+            }
+          />
+          <Text>{displayActivityCount(goal.metric)}</Text>
+        </Group>
+      </Modal>
+      <Container p="md" size={2000}>
+        <Paper withBorder p="lg">
+          <Container
+            fluid
+            style={{
+              display: "flex",
+              flexDirection: "row-reverse",
+              justifyContent: "space-between",
+              paddingRight: 0,
+            }}
           >
-            {dark ? <Sun size={18} /> : <MoonStars size={18} />}
-          </ActionIcon>
-          {loggedIn && <Title>{stravaDeets.athlete.firstname}</Title>}
-        </Container>
+            <Container
+              fluid
+              style={{
+                display: "flex",
+                alignItems: "center",
+                marginRight: 0,
+              }}
+            >
+              <ActionIcon
+                variant="outline"
+                onClick={() => setGoalModalOpened(true)}
+                style={{ margin: 5 }}
+              >
+                <Settings size={18} />
+              </ActionIcon>
 
-        {!loggedIn && (
-          <Center>
-            <Button component="a" href={stravaLoginUrl} size="xl" radius="lg">
-              Strava login
-            </Button>
-          </Center>
-        )}
+              <ActionIcon
+                variant="outline"
+                onClick={() => toggleColorScheme()}
+                style={{ margin: 5 }}
+              >
+                {dark ? <Sun size={18} /> : <MoonStars size={18} />}
+              </ActionIcon>
+            </Container>
 
-        {stats && (
-          <>
+            {loggedIn && <Title>{stravaDeets.athlete.firstname}</Title>}
+          </Container>
+
+          {!loggedIn && (
             <Center>
-              <Text span size={120} weight={700}>
-                {kmsRun}
-              </Text>
-              <Text span size={48}>
-                km
-              </Text>
+              <Button component="a" href={stravaLoginUrl} size="xl" radius="lg">
+                Strava login
+              </Button>
             </Center>
-            <p>
-              <Text weight={700} span>
-                {daysLeftInYear}
-              </Text>{" "}
-              days left to run{" "}
-              <Text weight={700} span>
-                {Math.floor(1000 - kmsRun)}
-              </Text>
-              km
-            </p>
-            <p>
-              That's about{" "}
-              <Text weight={700} span>
-                {((1000 - kmsRun) / daysLeftInYear).toFixed(1)}
-              </Text>
-              km a day. Over the past 4 weeks you've run{" "}
-              <Text weight={700} span>
-                {(stats.recent_run_totals.distance / (4 * 7 * 1000)).toFixed(1)}
-              </Text>
-              km per day
-            </p>
-            <Progress value={kmsRun / 10} size={30} />
-          </>
-        )}
-      </Paper>
-    </Container>
+          )}
+
+          {stats && (
+            <>
+              <Center>
+                <Text span size={120} weight={700}>
+                  {metricCount}
+                </Text>
+                <Text span size={48}>
+                  {displayActivityCount(goal.metric)}
+                </Text>
+              </Center>
+              <p>
+                <Text weight={700} span>
+                  {daysLeftInYear}
+                </Text>{" "}
+                days left to {displayActivityName(goal.activity)}{" "}
+                <Text weight={700} span>
+                  {Math.floor(goal.threshold - metricCount)}
+                </Text>
+                {displayActivityCount(goal.metric)}
+              </p>
+              <p>
+                That's about{" "}
+                <Text weight={700} span>
+                  {((goal.threshold - metricCount) / daysLeftInYear).toFixed(1)}
+                </Text>
+                {displayActivityCount(goal.metric)} a day. Over the past 4 weeks
+                you've {displayActivityName(goal.activity, Tense.Past)}{" "}
+                <Text weight={700} span>
+                  {(
+                    getMetric(
+                      getActivity(stats, goal.activity, true),
+                      goal.metric
+                    ) /
+                    (4 * 7)
+                  ) // four weeks
+                    .toFixed(1)}
+                </Text>
+                {displayActivityCount(goal.metric)} per day
+              </p>
+              <Progress
+                value={(100 * metricCount) / goal.threshold}
+                size={30}
+              />
+            </>
+          )}
+        </Paper>
+      </Container>
+    </>
   );
 }
 
